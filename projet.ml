@@ -1,9 +1,14 @@
+(*Projet de programmation fonctionnelle*)
+(*Simplification d'expressions arithmétiques*)
+(*Réalisé par Fréjoux Gaëtan && Niord Mathieu*)
+
+
 (*load*)
 #load "expression_scanner.cmo";;
 
 (*open*)
 open Expression_scanner;;
-open Stack;;
+open Stack;; (*Module Pile*)
 
 (*show*)
 #show Expression_scanner;;
@@ -48,77 +53,84 @@ let x = string_to_token_list " 34 56 2 + x * -;";;
 
 (*fonctions*)
 
+(*Fonction qui permet de transformer un token en operateur*)
+let tokenToOperator token =
+  match token with
+  | Add -> Plus
+  | Subtract -> Minus
+  | Multiply -> Mult
+  | Divide -> Div
+  | _ -> failwith" It's not an operator."
+;;
+
 (*fonction qui transforme une liste de token en un arbre de syntaxe abstraite*)
 let parse list =
-  let ended = ref false in (*booleen qui dit si l'expression s'est terminÃ© par ';' *)
-  let stack_len = ref 0 in
-  let error = "This expression is not valid." in
-  let rec parse_aux list stack=
-    if(!stack_len<0)
+  
+  let ended = ref false and (*booleen qui dit si l'expression s'est terminÃ© par ';' *)
+      stack_len = ref 0 and (*Longueur de la pile*)
+      error = "This expression is not valid." in (*Message d'erreur*)
+  
+  let rec parse_aux list stack = (*Fonction anonyme*)
+    if(!stack_len<0) 
     then failwith error
     else
       (
         match list with
           
         | [] ->
-           if (!ended)
+           if (!ended && !stack_len = 1) (*Test finir par End et taille = 1*)
            then ()
-           else failwith "This expression didn't end by a ';'. She's not correct."
+           else failwith error
           
         | hd::tl ->
-           ignore((match hd with
+           ignore(
+               match hd with
 
-                   | Variable(v) ->
-                      stack_len := !stack_len + 1;
-                      push (Var(v)) stack
-                      
-                      
-                   | Number(n) ->
-                      
-                      stack_len := !stack_len + 1;
-                      push (Cst(n)) stack;
-                      
-                   | Minus ->
-                      if(!stack_len<1)
-                      then failwith error
-                      else
-                        (
-                          let valeur = pop stack in
-                          push (Unary(valeur)) stack
-                        )
+               | Variable(v) -> (*Cas variable*)
+                  
+                  stack_len := !stack_len + 1;
+                  push (Var(v)) stack
+                  
+               | Number(n) -> (*Cas nombre*)
+                  
+                  stack_len := !stack_len + 1;
+                  push (Cst(n)) stack;
+                  
+               | Minus -> (*Cas de l'operateur unaire*)
+                  
+                  if(!stack_len<1)
+                  then failwith error
+                  else push (Unary(pop stack)) stack
+                 
 
-                   | End ->
-                      ended := true;
-                      ()
+               | End -> (*Cas de la fin de l'expression*)
+                  
+                  if(tl=[])
+                  then ended := true
+                  else failwith error
+                 
+               | _ -> (* Cas des operateurs *)
+                  
+                  if(!stack_len<2) (*test si il y a le fils gauche et droit*)
+                  then failwith error
+                  else
+                    (
+                      stack_len := !stack_len - 1; (*retire 2 élément et en rajoute 1 donc -1*)
+                      let d = pop stack in (*fils droit*)
+                      let g = pop stack in (*fils gauche*)
+                      let op = tokenToOperator hd in (*opeateur*)
                       
-                   | _ ->
-                      if(!stack_len<2)
-                      then failwith error
-                      else
-                        (
-                          stack_len := !stack_len -1;
-                          let v1 = pop stack in
-                          let v2 = pop stack in
-                          
-                          match hd with
-                            
-                          | Add -> push (Binary(Plus,v2,v1)) stack
+                      push (Binary(op,g,d)) stack 
 
-                          | Subtract -> push (Binary(Minus,v2,v1)) stack
-
-                          | Multiply -> push (Binary(Mult,v2,v1)) stack
-
-                          | Divide -> push (Binary(Div,v2,v1)) stack
-                        )
-             ));
+                    )
+             );
            parse_aux tl stack
       )
-        in
-  let stack = create() in
-  ignore((parse_aux list stack));
-  pop stack
+  in
+  let stack = create() in (*Pile vide*)
+  parse_aux list stack; (*Pile ayant pour seul élément l'arbre.*)
+  pop stack (*renvoie l'arbre.*)
 ;;
-
 
 let ans = parse x;;
 
@@ -143,6 +155,3 @@ let ans = parse x;;
 (*TODO*)
 
 (*fonctionn qui transforme un arbre de syntaxe abstraite en un string*)
-
-
-
