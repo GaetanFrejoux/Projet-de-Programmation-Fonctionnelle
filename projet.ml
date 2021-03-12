@@ -35,7 +35,7 @@ type tree =
 
 
 (*tests*)
-let x = string_to_token_list " 34 56 2 + x * -;";;
+let x = string_to_token_list " 34 ~ 56 2 + x * -;";;
 
 
 (*Analyse lexicale*)
@@ -141,11 +141,25 @@ let ans = parse x;;
 
 (*Simplication sur l'arbre*)
 
-(*TODO*)
-
 (*fonction qui simplifie un arbre de syntaxe abstraite*)
+(*Dans cette fonction de simplification, il y a 4 cas possible pour simplifier :
+
+  -  une sous-expression constituée exclusivement de constantes.
+
+  -  une expression de la forme 1*x ou 0 + x sera simplifiée en x ; de même l'expression 0 * x
+     sera simplifié par 0
+
+  -  une sous-expression de la forme x * x sera simplifiée en 0 
+
+  -  une sous-expression de la forme x/x sera simplifiée en 1
+ *)
 
 
+let simplifyTree tree =
+
+(*TODO*)
+  
+;;
 
 
 
@@ -155,3 +169,8 @@ let ans = parse x;;
 (*TODO*)
 
 (*fonctionn qui transforme un arbre de syntaxe abstraite en un string*)
+(*Dans cette fonction d'affichage, il faudra afficher l'expression avec le moins de parenthèses
+ possible.
+ 
+  -  Ne pas mettre de parenthèse lorsqu'il y a associativité : ((a*b)*c)*(e+f) doit être a*b*c*(e+f)
+ *)
