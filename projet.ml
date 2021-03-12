@@ -30,11 +30,7 @@ type tree =
 
 
 (*tests*)
-let x = string_to_token_list " 4 5 +;";;
-
-
-
-
+let x = string_to_token_list " 34 56 2 + x * -;";;
 
 
 (*Analyse lexicale*)
@@ -53,12 +49,37 @@ let x = string_to_token_list " 4 5 +;";;
 (*fonctions*)
 
 (*fonction qui transforme une liste de token en un arbre de syntaxe abstraite*)
-let token_list_to_abstract_syntax_tree list =
-  let rec t_l_t_a_s_t_aux list tree =
+let parse list =
+  let rec parse_aux list stack =
     match list with
-    | [] -> tree
-    | hd::tl -> (*TODO*)
+    | [] -> ()
+    | hd::tl ->  ignore((match hd with
+                 | Variable(v) -> push (Var(v)) stack
+                                    
+                 | Number(n) -> push (Cst(n)) stack
+                              
+                 | Minus -> let valeur = pop stack in
+                            push (Unary(valeur)) stack
+                            
+                 | End -> ()
+                 | _ -> let v1 = pop stack in
+                        let v2 = pop stack in
+                        match hd with
+                        | Add -> push (Binary(Plus,v2,v1)) stack
+                        | Subtract -> push (Binary(Minus,v2,v1)) stack
+                        | Multiply -> push (Binary(Mult,v2,v1)) stack
+                        | Divide -> push (Binary(Div,v2,v1)) stack
+                   ));
+                 parse_aux tl stack
+  in
+  let stack = create() in
+  ignore((parse_aux list stack));
+  pop stack
 ;;
+
+
+let ans = parse x;;
+
 
 
 
@@ -81,7 +102,6 @@ let token_list_to_abstract_syntax_tree list =
 (*TODO*)
 
 (*fonctionn qui transforme un arbre de syntaxe abstraite en un string*)
-
 
 
 
