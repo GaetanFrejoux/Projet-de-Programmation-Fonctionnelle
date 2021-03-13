@@ -126,14 +126,10 @@ let ans = parse x;;
 
 (*fonction qui simplifie un arbre de syntaxe abstraite*)
 (*Dans cette fonction de simplification, il y a 4 cas possible pour simplifier :
-
   -  une sous-expression constituée exclusivement de constantes.
-
   -  une expression de la forme 1*x ou 0 + x sera simplifiée en x ; de même l'expression 0 * x
      sera simplifiée par 0
-
   -  une sous-expression de la forme 0 * x sera simplifiée en 0 
-
   -  une sous-expression de la forme x/x sera simplifiée en 1
  *)
 
@@ -210,14 +206,53 @@ let rec displayTree t =
   match t with
   |Var(x) -> string_of_char x
   |Cst(c) -> string_of_int c
-  |Unary(t) -> "-"^(display_aux t)
-  |Binary(op, g, d) -> let res = (display_aux g)^(string_of_op op)^(display_aux d) in
-                       match op with
-                       |Div
-                        |Mult
+  |Unary(t) -> "(-"^(displayTree t)^")"
+  |Binary(op, g, d) -> let stringG = (displayTree g) and
+                           stringD = (displayTree d) and
+                           stringOp = string_of_op op in
                        
+                       match g,d with
+                         
+                       | Binary(opG,_,_),Binary(opD,_,_) ->
+                          if op = opG && opG = opD
+                          then stringG ^ (stringOp) ^ stringD
+                          else "("^stringG^")"^stringOp^"("^stringD^")"
+
+                         
+                       | Binary(opG,_,_),_ ->
+                          if op = opG
+                          then stringG ^ (stringOp) ^ stringD
+                          else
+                            (
+                              match op,opG with 
+                              |Plus,Mult -> stringG ^ stringOp ^ stringD
+                              | Plus,Div -> stringG ^ stringOp ^ stringD
+                              | Minus,Mult -> stringG ^ stringOp ^ stringD
+                              | Minus,Div -> stringG ^ stringOp ^ stringD
+                              | _ -> "(" ^ stringG ^ ")" ^ stringOp ^ stringD
+                            )
+                       | _,Binary(opD,_,_) ->
+                          if op = opD
+                          then stringG ^ stringOp ^ stringD
+                          else
+                            (
+                              match op,opD with 
+                              | Plus, Mult -> stringG ^ stringOp ^ stringD
+                              | Plus, Div -> stringG ^ stringOp ^ stringD
+                              | Minus, Mult -> stringG ^ stringOp ^ stringD
+                              | Minus, Div -> stringG ^ stringOp ^ stringD
+                              | _ -> stringG ^ stringOp ^ "(" ^ stringD ^ ")"
+                            )
+                       | _ -> stringG ^ (stringOp) ^ stringD 
 ;;
+(*   a*b*c*(e+f)   *)
 
-displayTree t;;
+let tokenL2 = string_to_token_list "a b * c e f + * *;";;
+let tree2 = parse tokenL2;;
+let simp = simplifyTree tree2;;
+let text = displayTree tree2;;
 
-string_of_char 'g';;
+let tokenL3 = string_to_token_list "a b c * +;";;
+let tree3 = parse tokenL3;;
+let simp2 = simplifyTree tree3;;
+let text2 = displayTree tree3;;
