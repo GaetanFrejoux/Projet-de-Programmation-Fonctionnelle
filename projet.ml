@@ -9,10 +9,12 @@
 (*open*)
 open Expression_scanner;;
 open Stack;; (*Module Pile*)
+open String;;
 
 (*show*)
 #show Expression_scanner;;
 #show Stack;;
+#show String;;
 
 
 (*Types*)
@@ -135,23 +137,87 @@ let ans = parse x;;
   -  une sous-expression de la forme x/x sera simplifiée en 1
  *)
 
-
-let simplifyTree tree =
-
-(*TODO*)
-  
+let operBinary op c1 c2 =
+  match op with
+  |Plus -> Cst(c1 + c2)
+  |Minus -> Cst(c1 - c2)
+  |Mult -> Cst(c1 * c2)
+  |Div -> Cst(c1/c2)
 ;;
 
 
+let rec simplifyTree tree =
+  match tree with
+    
+  |Var(x) -> tree
+           
+  |Cst(c) -> tree
+           
+  |Unary(t) -> let son = simplifyTree t in
+               Unary(son)
+          
+  (*- Opération sur deux constantes -*)
+  |Binary(op, Cst(c1), Cst(c2)) -> operBinary op c1 c2
+                                 
+  (*- 1 * x -*)
+  |Binary(Mult, Var(x), Cst(1)) -> Var(x)
+  |Binary(Mult, Cst(1), Var(x)) -> Var(x)
+                                 
+  (*- 0 + x -*)
+  |Binary(Plus, Var(x), Cst(0)) -> Var(x)
+  |Binary(Plus, Cst(0), Var(x)) -> Var(x)
+                                 
+  (*- 0 * x -*)
+  |Binary(Mult, Var(x), Cst(0)) -> Cst(0)
+  |Binary(Mult, Cst(0), Var(x)) -> Cst(0)
+                                 
+  (*- x/x -*)
+  |Binary(Div, Var(x1), Var(x2)) -> if x1 = x2
+                                   then Cst(1)
+                                   else tree
+                                  
+  |Binary(op, g, d) -> Binary(op, simplifyTree g, simplifyTree d)
+;;
+
+(*TEST*)
+let t = simplifyTree ans;;
 
 
 (*Affichage du résultat*)
 
 (*TODO*)
 
-(*fonctionn qui transforme un arbre de syntaxe abstraite en un string*)
+(*fonction qui transforme un arbre de syntaxe abstraite en un string*)
 (*Dans cette fonction d'affichage, il faudra afficher l'expression avec le moins de parenthèses
  possible.
  
   -  Ne pas mettre de parenthèse lorsqu'il y a association : ((a*b)*c)*(e+f) doit être a*b*c*(e+f)
  *)
+
+let string_of_char c =
+  make 1 c
+;;
+
+let string_of_op op =
+  match op with
+  |Plus -> " + "
+  |Minus -> " - "
+  |Mult -> " * "
+  |Div -> "/"
+;;
+
+let rec displayTree t =
+  match t with
+  |Var(x) -> string_of_char x
+  |Cst(c) -> string_of_int c
+  |Unary(t) -> "-"^(display_aux t)
+  |Binary(op, g, d) -> let res = (display_aux g)^(string_of_op op)^(display_aux d) in
+                       match op with
+                       |Div
+                        |Mult
+                       
+;;
+
+displayTree t;;
+
+string_of_char 'g';;
