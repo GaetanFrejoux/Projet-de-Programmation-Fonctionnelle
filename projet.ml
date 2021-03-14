@@ -1,3 +1,4 @@
+
 (*Projet de programmation fonctionnelle*)
 (*Simplification d'expressions arithmétiques*)
 (*Réalisé par Fréjoux Gaëtan && Niord Mathieu*)
@@ -5,16 +6,13 @@
 
 (*load*)
 #load "expression_scanner.cmo";;
-
 (*open*)
 open Expression_scanner;;
-open Stack;; (*Module Pile*)
+open Stack;;
 open String;;
 
 (*show*)
-#show Expression_scanner;;
-#show Stack;;
-#show String;;
+
 
 
 (*Types*)
@@ -29,6 +27,7 @@ type tree =
   | Unary of tree
   | Binary of operator * tree * tree
 ;;
+
 
 
 (*tests*)
@@ -53,6 +52,7 @@ let tokenToOperator token =
   match token with
   | Add -> Plus
   | Subtract -> Minus
+              
   | Multiply -> Mult
   | Divide -> Div
   | _ -> failwith "--- Error : It's not an operator ---"
@@ -113,7 +113,7 @@ let parse list =
                    parse_aux tl stack
       )
   in
-  let stack = create() in (*Pile vide*)
+  let stack = Stack.create() in
   parse_aux list stack; (*Pile ayant pour seul élément l'arbre.*)
   pop stack (*renvoie l'arbre.*)
 ;;
@@ -136,52 +136,87 @@ let ans = parse x;;
 let operBinary op c1 c2 =
   match op with
   |Plus -> Cst(c1 + c2)
-  |Minus -> Cst(c1 - c2)
+  |Minus -> if ((c1-c2)<0)
+            then Unary(Cst(c1 - c2))
+            else Cst(c1 - c2)
   |Mult -> Cst(c1 * c2)
-  |Div -> Cst(c1/c2)
+  |Div -> Cst(c1 / c2)
+;;
+
+let isPriority op =
+  match op with
+  | Plus -> false
+  | Minus -> false
+  | _ -> true
 ;;
 
 
 let rec simplifyTree tree =
   match tree with
-    
+
+  (*Cas d'une variable*)
   |Var(x) -> tree
-           
+  (*Cas d'une constante*)
   |Cst(c) -> tree
-           
-  |Unary(t) -> let son = simplifyTree t in
-               Unary(son)
-          
-  (*- Opération sur deux constantes -*)
-  |Binary(op, Cst(c1), Cst(c2)) -> operBinary op c1 c2
-                                 
-  (*- 1 * x -*)
-  |Binary(Mult, Var(x), Cst(1)) -> Var(x)
-  |Binary(Mult, Cst(1), Var(x)) -> Var(x)
-                                 
-  (*- 0 + x -*)
-  |Binary(Plus, Var(x), Cst(0)) -> Var(x)
-  |Binary(Plus, Cst(0), Var(x)) -> Var(x)
-                                 
-  (*- 0 * x -*)
-  |Binary(Mult, Var(x), Cst(0)) -> Cst(0)
-  |Binary(Mult, Cst(0), Var(x)) -> Cst(0)
-                                 
-  (*- x/x -*)
-  |Binary(Div, Var(x1), Var(x2)) -> if x1 = x2
-                                   then Cst(1)
-                                   else tree
-                                  
-  |Binary(op, g, d) -> Binary(op, simplifyTree g, simplifyTree d)
+  (*Cas d'une valeur négative*)
+  |Unary(t) -> 
+    (
+      let son = simplifyTree t in
+      match son with
+      (*Cas d'une valeur négative (--x) -> (x)  *)
+      | Unary(v) -> v
+      (*Autres cas :*)
+      | _ -> Unary(son)
+    )
+  (*Cas d'une operation :*)
+   
+  | Binary(op,gauche,droite) ->
+     let (eg,ed) = (simplifyTree gauche,simplifyTree droite) in
+     match op,eg,ed with
+     (*Cas 2 constantes :*)
+     | _,Cst(c1),Cst(c2) -> operBinary op c1 c2
+     (*Cas (1*x) ou (x*1)*)
+     | Mult,g,Cst(1) -> g
+     | Mult,Cst(1),d -> d
+     (*Cas (0+x) ou (x+O)*)
+     | Plus,g,Cst(0) -> g
+     | Plus,Cst(0),d -> d
+     (*Cas (0-x) ou (x-0)*)
+     | Minus,g,Cst(0) -> g
+     | Minus,Cst(0),d -> Unary(d)
+     (*Cas (0*x) ou (x*0) *)
+     | Mult,_,Cst(0) -> Cst(0)
+     | Mult,Cst(0),_ -> Cst(0)
+     (*Cas (0/x) ou (x/0)*)
+     | Div,_,Cst(0) -> failwith "Cannot divide by 0."
+     | Div,Cst(0),_ -> Cst(0)
+     (*Cas (x/1)*)
+     | Div,g,Cst(1) -> g
+     (*Cas (x/x)*)
+     | Div,g,d -> if (g=d)
+                  then Cst(1)
+                  else Binary(op,eg,ed)
+     (*Cas x - (-y)*)
+     | Minus,g,Unary(d) -> Binary(Plus,g,d)
+     (*Cas (-x) + y*)
+     | Plus,Unary(g),d -> Binary(Minus,d,g)
+     (*Cas plus complexe :*)
+     (*Cas ((2+x)+3) ou ((x+2)+3)*)
+     | Plus,Binary(Plus,Cst(c1),d),Cst(c2) -> Binary(Plus,Cst(c1+c2),d)
+     | Plus,Binary(Plus,g,Cst(c1)),Cst(c2) -> Binary(Plus,g,Cst(c1+c2))
+     (*Cas (3+(2+x)) ou (3 + (x+2))*)
+     | Plus,Cst(c1),Binary(Plus,Cst(c2),d) -> Binary(Plus,Cst(c1+c2),d)
+     | Plus,Cst(c1),Binary(Plus,g,Cst(c2)) -> Binary(Plus,g,Cst(c1+c2))
+     (*Autres cas*)
+     | _ -> Binary(op,eg,ed)
 ;;
 
 (*TEST*)
-let t = simplifyTree ans;;
-
+(*
+  let t = simplifyTree ans;;
+ *)
 
 (*Affichage du résultat*)
-
-(*TODO*)
 
 (*fonction qui transforme un arbre de syntaxe abstraite en un string*)
 (*Dans cette fonction d'affichage, il faudra afficher l'expression avec le moins de parenthèses
@@ -202,51 +237,52 @@ let string_of_op op =
   |Div -> "/"
 ;;
 
+
+let par s =
+  "("^s^")"
+;;
+
 let rec displayTree t =
   match t with
   |Var(x) -> string_of_char x
   |Cst(c) -> string_of_int c
   |Unary(t) -> "(-"^(displayTree t)^")"
-  |Binary(op, g, d) -> let stringG = (displayTree g) and
-                           stringD = (displayTree d) and
-                           stringOp = string_of_op op in
-                       
-                       match g,d with
-                         
-                       | Binary(opG,_,_),Binary(opD,_,_) ->
-                          if op = opG && opG = opD
-                          then stringG ^ (stringOp) ^ stringD
-                          else "("^stringG^")"^stringOp^"("^stringD^")"
+  |Binary(op, g, d) ->
+    let sG = displayTree g and
+        sD = displayTree d and
+        sO = string_of_op op in
+    
+    match g,d with
+      
+    | Binary(opG,_,_),Binary(opD,_,_) ->
+       if op = opG && op = opD
+       then sG^sO^sD
+       else (par sG)^sO^(par sD)
 
-                         
-                       | Binary(opG,_,_),_ ->
-                          if op = opG
-                          then stringG ^ (stringOp) ^ stringD
-                          else
-                            (
-                              match op,opG with 
-                              |Plus,Mult -> stringG ^ stringOp ^ stringD
-                              | Plus,Div -> stringG ^ stringOp ^ stringD
-                              | Minus,Mult -> stringG ^ stringOp ^ stringD
-                              | Minus,Div -> stringG ^ stringOp ^ stringD
-                              | _ -> "(" ^ stringG ^ ")" ^ stringOp ^ stringD
-                            )
-                       | _,Binary(opD,_,_) ->
-                          if op = opD
-                          then stringG ^ stringOp ^ stringD
-                          else
-                            (
-                              match op,opD with 
-                              | Plus, Mult -> stringG ^ stringOp ^ stringD
-                              | Plus, Div -> stringG ^ stringOp ^ stringD
-                              | Minus, Mult -> stringG ^ stringOp ^ stringD
-                              | Minus, Div -> stringG ^ stringOp ^ stringD
-                              | _ -> stringG ^ stringOp ^ "(" ^ stringD ^ ")"
-                            )
-                       | _ -> stringG ^ (stringOp) ^ stringD 
+      
+    | Binary(opG,_,_),_ ->
+       if op = opG
+       then sG^sO^sD
+       else
+         (
+           if (isPriority op)
+           then (par sG)^sO^sD
+           else sG^sO^sD
+         )
+    | _,Binary(opD,_,_) ->
+       if op = opD
+       then sG^sO^sD
+       else
+         (
+           if (isPriority op)
+           then sG^sO^(par sD)
+           else sG^sO^sD
+         )
+    | _ -> sG^sO^sD 
 ;;
 (*   a*b*c*(e+f)   *)
 
+(*
 let tokenL2 = string_to_token_list "a b * c e f + * *;";;
 let tree2 = parse tokenL2;;
 let simp = simplifyTree tree2;;
@@ -256,3 +292,8 @@ let tokenL3 = string_to_token_list "a b c * +;";;
 let tree3 = parse tokenL3;;
 let simp2 = simplifyTree tree3;;
 let text2 = displayTree tree3;;
+ *)
+
+
+print_endline ("Input here :");;
+print_endline (displayTree (simplifyTree (parse (input_to_token_list()))));;
