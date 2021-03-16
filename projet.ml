@@ -36,7 +36,7 @@ let x = string_to_token_list " 34 ~ 56 2 + x * -;";;
 
 (*Analyse lexicale*)
 
-(*Cette partie est donnée dans le sujet en utilisant le module expression_scanner*)
+(*Cette partie est donnée*)
 
 
 
@@ -51,8 +51,7 @@ let x = string_to_token_list " 34 ~ 56 2 + x * -;";;
 let tokenToOperator token =
   match token with
   | Add -> Plus
-  | Subtract -> Minus
-              
+  | Subtract -> Minus   
   | Multiply -> Mult
   | Divide -> Div
   | _ -> failwith "--- Error : It's not an operator ---"
@@ -61,7 +60,7 @@ let tokenToOperator token =
 (*fonction qui transforme une liste de token en un arbre de syntaxe abstraite*)
 let parse list =
   
-  let ended = ref false and (*booleen qui indique si l'expression s'est terminée par ';' *)
+  let ended = ref false and (*booleen vrai si expression fini par ';' *)
       stack_len = ref 0 and (*Longueur de la pile*)
       error = "--- Invalid Expression ---" in (*Message d'erreur*)
   
@@ -71,46 +70,34 @@ let parse list =
     else
       (
         match list with
-          
-        |[] -> if (!ended && !stack_len = 1) (*Test finir par End et taille = 1*)
-               then ()
-               else failwith error
-         
-        |hd::tl -> ignore(
-                       match hd with
-
-                       (*Cas variable*)
-                       |Variable(v) -> stack_len := !stack_len + 1;
-                                       push (Var(v)) stack
-
-                       (*Cas nombre*)
-                       |Number(n) -> stack_len := !stack_len + 1;
-                                     push (Cst(n)) stack;
-
-                       (*Cas de l'operateur unaire*)
-                       |Minus -> if(!stack_len<1)
-                                 then failwith error
-                                 else push (Unary(pop stack)) stack
+        |[] -> if (!ended && !stack_len = 1) then () else failwith error
+        |hd::tl ->
+          ignore(
+              match hd with
+              |Variable(v) -> stack_len := !stack_len + 1; (*Cas variable*)
+                              push (Var(v)) stack
+                              
+              |Number(n) -> stack_len := !stack_len + 1; (*Cas nombre*)
+                            push (Cst(n)) stack;
+                            
+              |Minus -> if(!stack_len<1) then failwith error (*Cas negatif*)
+                        else push (Unary(pop stack)) stack
+                      
+              |End -> if(tl=[]) then ended := true else failwith error
+                    
+              |_ -> if(!stack_len<2) (*test s'il y a les 2 fils dans la pile*)
+                    then failwith error
+                    else
+                      (
+                        stack_len := !stack_len - 1; (* -1 -1 +1 -> -1*)
+                        let d = pop stack in (*-1*)
+                        let g = pop stack in (*-1*)
+                        let op = tokenToOperator hd in (*opeateur*)
                         
-                       (*Cas de la fin de l'expression*)
-                       |End -> if(tl=[])
-                               then ended := true
-                               else failwith error
-                             
-                       (* Cas des operateurs *)
-                       |_ -> if(!stack_len<2) (*test si il y a le fils gauche et droit*)
-                             then failwith error
-                             else
-                               (
-                                 stack_len := !stack_len - 1; (*retire 2 élément et en rajoute 1 donc -1*)
-                                 let d = pop stack in (*fils droit*)
-                                 let g = pop stack in (*fils gauche*)
-                                 let op = tokenToOperator hd in (*opeateur*)
-                                 
-                                 push (Binary(op,g,d)) stack
-                               )
-                     );
-                   parse_aux tl stack
+                        push (Binary(op,g,d)) stack (*+1*)
+                      )
+            );
+          parse_aux tl stack
       )
   in
   let stack = Stack.create() in
@@ -153,60 +140,43 @@ let isPriority op =
 
 let rec simplifyTree tree =
   match tree with
-
-  (*Cas d'une variable*)
-  |Var(x) -> tree
-  (*Cas d'une constante*)
-  |Cst(c) -> tree
-  (*Cas d'une valeur négative*)
-  |Unary(t) -> 
+  |Var(x) -> tree (*Cas d'une variable*)
+  |Cst(c) -> tree (*Cas d'une constante*)
+  |Unary(t) -> (*Cas d'une valeur négative*)
     (
       let son = simplifyTree t in
       match son with
-      (*Cas d'une valeur négative (--x) -> (x)  *)
-      | Unary(v) -> v
-      (*Autres cas :*)
-      | _ -> Unary(son)
+      | Unary(v) -> v (*Cas (--x) -> (x)  *)
+      | _ -> Unary(son) (*Autres cas :*)
     )
-  (*Cas d'une operation :*)
-   
-  | Binary(op,gauche,droite) ->
+  | Binary(op,gauche,droite) -> (*Cas d'une operation :*)
      let (eg,ed) = (simplifyTree gauche,simplifyTree droite) in
      match op,eg,ed with
      (*Cas 2 constantes :*)
      | _,Cst(c1),Cst(c2) -> operBinary op c1 c2
-     (*Cas (1*x) ou (x*1)*)
-     | Mult,g,Cst(1) -> g
-     | Mult,Cst(1),d -> d
-     (*Cas (0+x) ou (x+O)*)
-     | Plus,g,Cst(0) -> g
-     | Plus,Cst(0),d -> d
-     (*Cas (0-x) ou (x-0)*)
-     | Minus,g,Cst(0) -> g
-     | Minus,Cst(0),d -> Unary(d)
-     (*Cas (0*x) ou (x*0) *)
-     | Mult,_,Cst(0) -> Cst(0)
-     | Mult,Cst(0),_ -> Cst(0)
-     (*Cas (0/x) ou (x/0)*)
-     | Div,_,Cst(0) -> failwith "Cannot divide by 0."
-     | Div,Cst(0),_ -> Cst(0)
-     (*Cas (x/1)*)
-     | Div,g,Cst(1) -> g
-     (*Cas (x/x)*)
-     | Div,g,d -> if (g=d)
-                  then Cst(1)
-                  else Binary(op,eg,ed)
-     (*Cas x - (-y)*)
-     | Minus,g,Unary(d) -> Binary(Plus,g,d)
-     (*Cas (-x) + y*)
-     | Plus,Unary(g),d -> Binary(Minus,d,g)
-     (*Cas plus complexe :*)
-     (*Cas ((2+x)+3) ou ((x+2)+3)*)
-     | Plus,Binary(Plus,Cst(c1),d),Cst(c2) -> Binary(Plus,Cst(c1+c2),d)
-     | Plus,Binary(Plus,g,Cst(c1)),Cst(c2) -> Binary(Plus,g,Cst(c1+c2))
-     (*Cas (3+(2+x)) ou (3 + (x+2))*)
-     | Plus,Cst(c1),Binary(Plus,Cst(c2),d) -> Binary(Plus,Cst(c1+c2),d)
-     | Plus,Cst(c1),Binary(Plus,g,Cst(c2)) -> Binary(Plus,g,Cst(c1+c2))
+     | Mult,sub,Cst(1) | Mult,Cst(1),sub -> sub (*Cas (1*x) ou (x*1)*)
+     | Plus,sub,Cst(0) | Plus,Cst(0),sub -> sub (*Cas (0+x) ou (x+O)*)
+     | Minus,g,Cst(0) -> g (*Cas (x-0)*)
+     | Minus,Cst(0),d -> Unary(d) (*Cas (0-x)*)
+     | Mult,_,Cst(0)| Mult,Cst(0),_ -> Cst(0)  (*Cas (0*x) ou (x*0) *)
+     | Div,_,Cst(0) -> failwith "Cannot divide by 0." (*Cas (x/0)*)
+     | Div,Cst(0),_ -> Cst(0) (*Cas (0/x)*)
+     | Div,g,Cst(1) -> g (*Cas (x/1)*)
+     | Div,g,d -> if (g=d) then Cst(1) else Binary(op,eg,ed) (*Cas (x/x)*)
+     | Minus,g,Unary(d) -> Binary(Plus,g,d) (*Cas x - (-y)*)
+     | Plus,Unary(g),d -> Binary(Minus,d,g) (*Cas (-x) + y*)
+     | Plus,Binary(Plus,Cst(c1),sub),Cst(c2) (*Cas ((2+x)+3) ou ((x+2)+3)*)
+       | Plus,Binary(Plus,sub,Cst(c1)),Cst(c2)-> Binary(Plus,sub,Cst(c1+c2))
+     | Plus,Cst(c1),Binary(Plus,Cst(c2),sub)(*Cas (3+(2+x)) ou (3 + (x+2))*)
+       | Plus,Cst(c1),Binary(Plus,sub,Cst(c2)) -> Binary(Plus,sub,Cst(c1+c2))
+
+     | Plus,Binary(Plus,Cst(c1),sub1),Binary(Cst(c2),sub2) (*Cas (2+_)+(4+_)*)
+       | Plus,Binary(Plus,Cst(c1),sub1),Binary(sub2,Cst(c1))
+       | Plus,Binary(Plus,sub1,Cst(c1)),Binary(Cst(c2),sub2)
+       | Plus,Binary(Plus,sub1,Cst(c1)),Binary(sub2,Cst(c1))
+       -> if(sub1=sub2)
+          then Binary(Plus,Cst(c1+c2),Binary(Mult,Cst(2),sub1))
+          else Binary(Plus,Cst(c1+c2),Binary(Plus,sub1,sub2))
      (*Autres cas*)
      | _ -> Binary(op,eg,ed)
 ;;
