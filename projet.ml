@@ -1,4 +1,3 @@
-
 (*Projet de programmation fonctionnelle*)
 (*Simplification d'expressions arithmétiques*)
 (*Réalisé par Fréjoux Gaëtan && Niord Mathieu*)
@@ -6,13 +5,11 @@
 
 (*load*)
 #load "expression_scanner.cmo";;
+
 (*open*)
 open Expression_scanner;;
 open Stack;;
 open String;;
-
-(*show*)
-
 
 
 (*Types*)
@@ -28,22 +25,12 @@ type tree =
   | Binary of operator * tree * tree
 ;;
 
-
-
-(*tests*)
-let x = string_to_token_list " 34 ~ 56 2 + x * -;";;
-
-
 (*Analyse lexicale*)
 
 (*Cette partie est donnée*)
 
 
-
-
 (*Analyse syntaxique et construction de l'arbre*)
-
-(*TODO*)
 
 (*fonctions*)
 
@@ -111,21 +98,10 @@ let ans = parse x;;
 
 (*Simplication sur l'arbre*)
 
-(*fonction qui simplifie un arbre de syntaxe abstraite*)
-(*Dans cette fonction de simplification, il y a 4 cas possible pour simplifier :
-  -  une sous-expression constituée exclusivement de constantes.
-  -  une expression de la forme 1*x ou 0 + x sera simplifiée en x ; de même l'expression 0 * x
-     sera simplifiée par 0
-  -  une sous-expression de la forme 0 * x sera simplifiée en 0 
-  -  une sous-expression de la forme x/x sera simplifiée en 1
- *)
-
 let operBinary op c1 c2 =
   match op with
   |Plus -> Cst(c1 + c2)
-  |Minus -> if ((c1-c2)<0)
-            then Unary(Cst(c1 - c2))
-            else Cst(c1 - c2)
+  |Minus -> if ((c1-c2)<0) then Unary(Cst(c1 - c2)) else Cst(c1 - c2)
   |Mult -> Cst(c1 * c2)
   |Div -> Cst(c1 / c2)
 ;;
@@ -177,27 +153,11 @@ let rec simplifyTree tree =
        -> if(sub1=sub2)
           then Binary(Plus,Cst(c1+c2),Binary(Mult,Cst(2),sub1))
           else Binary(Plus,Cst(c1+c2),Binary(Plus,sub1,sub2))
-     (*Autres cas*)
-     | _ -> Binary(op,eg,ed)
+     | _ -> Binary(op,eg,ed) (*Autres cas*)
 ;;
 
-(*TEST*)
-(*
-  let t = simplifyTree ans;;
- *)
 
-(*Affichage du résultat*)
-
-(*fonction qui transforme un arbre de syntaxe abstraite en un string*)
-(*Dans cette fonction d'affichage, il faudra afficher l'expression avec le moins de parenthèses
- possible.
- 
-  -  Ne pas mettre de parenthèse lorsqu'il y a association : ((a*b)*c)*(e+f) doit être a*b*c*(e+f)
- *)
-
-let string_of_char c =
-  make 1 c
-;;
+let string_of_char = make 1 ;;
 
 let string_of_op op =
   match op with
@@ -208,62 +168,33 @@ let string_of_op op =
 ;;
 
 
-let par s =
-  "("^s^")"
-;;
+let par s = "("^s^")" ;;
 
+(*Affichage du résultat*)
 let rec displayTree t =
   match t with
-  |Var(x) -> string_of_char x
+    
+  |Var(x) -> string_of_char x       
   |Cst(c) -> string_of_int c
-  |Unary(t) -> "(-"^(displayTree t)^")"
+  |Unary(t) -> "(-"^(displayTree t)^")"        
   |Binary(op, g, d) ->
-    let sG = displayTree g and
-        sD = displayTree d and
-        sO = string_of_op op in
+    let sG = displayTree g and sD = displayTree d and sO = string_of_op op in
     
     match g,d with
       
     | Binary(opG,_,_),Binary(opD,_,_) ->
-       if op = opG && op = opD
-       then sG^sO^sD
-       else (par sG)^sO^(par sD)
-
+       if op = opG && op = opD then sG^sO^sD  else (par sG)^sO^(par sD)
       
     | Binary(opG,_,_),_ ->
-       if op = opG
-       then sG^sO^sD
-       else
-         (
-           if (isPriority op)
-           then (par sG)^sO^sD
-           else sG^sO^sD
-         )
+       if op = opG then sG^sO^sD
+       else if (isPriority op) then (par sG)^sO^sD else sG^sO^sD
+      
     | _,Binary(opD,_,_) ->
-       if op = opD
-       then sG^sO^sD
-       else
-         (
-           if (isPriority op)
-           then sG^sO^(par sD)
-           else sG^sO^sD
-         )
+       if op = opD then sG^sO^sD else
+         if (isPriority op) then sG^sO^(par sD) else sG^sO^sD
+      
     | _ -> sG^sO^sD 
 ;;
-(*   a*b*c*(e+f)   *)
-
-(*
-let tokenL2 = string_to_token_list "a b * c e f + * *;";;
-let tree2 = parse tokenL2;;
-let simp = simplifyTree tree2;;
-let text = displayTree tree2;;
-
-let tokenL3 = string_to_token_list "a b c * +;";;
-let tree3 = parse tokenL3;;
-let simp2 = simplifyTree tree3;;
-let text2 = displayTree tree3;;
- *)
-
 
 print_endline ("Input here :");;
 print_endline (displayTree (simplifyTree (parse (input_to_token_list()))));;
